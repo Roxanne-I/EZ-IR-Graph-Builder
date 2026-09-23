@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EZ-IR Graph Builder</title>
+<style>
+:root{--p:#65308f;--p2:#8c5bb4;--bg:#f8f4fb;--ink:#2d2733;--muted:#746d7a;--line:#e4d9eb;--good:#237a57;--bad:#b33d50}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:linear-gradient(#f8f4fb,#fff);color:var(--ink)}
+main{max-width:1000px;margin:auto;padding:22px}.hero{text-align:center;padding:32px 10px 20px}.hero h1{font-size:46px;color:var(--p);margin:0}.hero p{color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;margin:14px 0;box-shadow:0 9px 28px #65308f12}
+h2{color:var(--p);margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+button,select{min-height:48px;border:1.5px solid #d7c3e5;border-radius:13px;background:#fff;color:var(--p);font-weight:750;font-size:15px;padding:11px 14px}
+button{cursor:pointer}button:hover{background:#f6effa}.primary{background:var(--p);color:#fff;border-color:var(--p)}.primary:hover{background:#542477}
+.hidden{display:none}.steps{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}.pill{padding:7px 10px;border-radius:99px;background:#eee8f2;color:#75697d;font-size:12px;font-weight:800}.pill.on{background:var(--p);color:#fff}
+.layout{display:grid;grid-template-columns:1.25fr .75fr;gap:14px}.graphbox{border:1px solid #eee6f2;border-radius:16px;padding:10px;min-height:390px}
+svg{width:100%;height:auto;display:block}.side p{line-height:1.55}.feedback{font-weight:800;margin-top:10px}.good{color:var(--good)}.bad{color:var(--bad)}.nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.small{font-size:13px;color:var(--muted)}label{display:block;font-size:13px;font-weight:800;margin:9px 0 5px}
+@media(max-width:720px){main{padding:12px}.layout{grid-template-columns:1fr}.hero h1{font-size:38px}.graphbox{min-height:300px}}
+</style>
+</head>
+<body><main>
+<div class="hero"><h1>EZ-IR Graph Builder</h1><p>Build the interest-rate graph step by step.</p></div>
+
+<section id="start" class="card">
+<h2>Choose a framework</h2>
+<div class="grid"><button class="primary" data-fw="bond">Bond Market Analysis</button><button class="primary" data-fw="keynes">Keynesian Liquidity Preference</button></div>
+</section>
+
+<section id="builder" class="card hidden">
+<div class="steps" id="steps"></div>
+<h2 id="stepTitle"></h2>
+<div class="layout">
+ <div class="graphbox"><svg id="graph" viewBox="0 0 560 390" aria-label="Interest rate graph"></svg></div>
+ <div class="side" id="controls"></div>
+</div>
+<div class="nav"><button id="back">← Back</button><button id="next" class="primary">Next →</button><button id="restart">Restart</button></div>
+</section>
+</main>
+<script>
+const S={fw:null,step:1,factor:null,dir:null,shift:null,checked:false};
+const bondFactors={wealth:{n:"Wealth",up:"right",down:"left"},return:{n:"Expected Return",up:"right",down:"left"},risk:{n:"Risk",up:"left",down:"right"},liquidity:{n:"Liquidity",up:"right",down:"left"},inflation:{n:"Expected Inflation",up:"both",down:"both"}};
+const keynesFactors={income:{n:"Income / Output",up:"right",down:"left"},price:{n:"Price Level",up:"right",down:"left"},money:{n:"Money Supply",up:"right",down:"left"}};
+const $=x=>document.getElementById(x);
+document.querySelectorAll("[data-fw]").forEach(b=>b.addEventListener("click",()=>{S.fw=b.dataset.fw;S.step=1;$("start").classList.add("hidden");$("builder").classList.remove("hidden");render()}));
+$("restart").onclick=()=>{Object.assign(S,{fw:null,step:1,factor:null,dir:null,shift:null,checked:false});$("builder").classList.add("hidden");$("start").classList.remove("hidden")};
+$("back").onclick=()=>{if(S.step>1){S.step--;S.checked=false;render()}else $("restart").click()};
+$("next").onclick=()=>{if(S.step<7){if(S.step===5&&!S.checked)return;S.step++;render()}};
+function axis(x,y){return `<defs><marker id="a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7z"/></marker></defs><line x1="70" y1="330" x2="510" y2="330" stroke="#2d2733" stroke-width="2.3" marker-end="url(#a)"/><line x1="70" y1="330" x2="70" y2="45" stroke="#2d2733" stroke-width="2.3" marker-end="url(#a)"/><text x="500" y="360" font-weight="800">${x}</text><text x="38" y="55" font-weight="800">${y}</text>`}
+function baseGraph(level){
+ let s=axis(S.fw==="bond"?"Qb":"QM",S.fw==="bond"?"Pb":"r");
+ if(level>=2){
+  if(S.fw==="bond") s+=`<line x1="125" y1="285" x2="440" y2="80" stroke="#278b68" stroke-width="4"/><text x="443" y="80" font-weight="800">Bs₀</text><line x1="125" y1="80" x2="440" y2="285" stroke="#65308f" stroke-width="4"/><text x="443" y="300" font-weight="800">Bd₀</text>`;
+  else s+=`<line x1="300" y1="65" x2="300" y2="330" stroke="#278b68" stroke-width="4"/><text x="282" y="58" font-weight="800">Ms₀</text><line x1="125" y1="80" x2="440" y2="285" stroke="#65308f" stroke-width="4"/><text x="443" y="300" font-weight="800">Md₀</text>`;
+ }
+ if(level>=3){let x=S.fw==="bond"?282.5:300,y=S.fw==="bond"?182.5:193.8;s+=`<line x1="70" y1="${y}" x2="${x}" y2="${y}" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${x}" y2="330" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${x}" cy="${y}" r="6" fill="#3974ba"/><text x="${x+9}" y="${y-8}" font-weight="800">E₀</text><text x="38" y="${y+5}" font-weight="800">${S.fw==="bond"?"P₀":"r₀"}</text><text x="${x-13}" y="354" font-weight="800">${S.fw==="bond"?"Q₀":"QM₀"}</text>`}
+ if(level>=6) s+=shifted();
+ return s
+}
+function shifted(){
+ const f=(S.fw==="bond"?bondFactors:keynesFactors)[S.factor], d=S.dir, right=f[d]==="right", both=f[d]==="both";
+ if(S.fw==="bond"){
+   if(both){let up=d==="up";return `<line x1="${up?70:180}" y1="80" x2="${up?385:495}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${up?360:470}" y="300" font-weight="800">Bd₁</text><line x1="${up?180:70}" y1="285" x2="${up?495:385}" y2="80" stroke="#d68b2c" stroke-width="4"/><text x="${up?470:360}" y="78" font-weight="800">Bs₁</text>`}
+   let off=right?55:-55, x=282.5+off/2, y=182.5-off*205/630;
+   return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Bd₁</text><circle cx="${x}" cy="${y}" r="6" fill="#c84c8b"/><text x="${x+8}" y="${y-8}" font-weight="800">E₁</text>`;
+ } else {
+   if(S.factor==="money"){let x=right?365:235,y=193.8+(right?42:-42);return `<line x1="${x}" y1="65" x2="${x}" y2="330" stroke="#d68b2c" stroke-width="4"/><text x="${x-18}" y="58" font-weight="800">Ms₁</text><circle cx="${x}" cy="${y}" r="6" fill="#c84c8b"/><text x="${x+8}" y="${y-8}" font-weight="800">E₁</text>`}
+   let off=right?55:-55, y=193.8-off*205/315;return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Md₁</text><circle cx="300" cy="${y}" r="6" fill="#c84c8b"/><text x="308" y="${y-8}" font-weight="800">E₁</text>`;
+ }
+}
+function render(){
+ const titles=["Label the graph","Draw the initial curves","Mark the initial equilibrium","Identify the shifting factor","Choose the direction of shift","Draw the shifted curve","Explain the result"];
+ $("steps").innerHTML=titles.map((t,i)=>`<span class="pill ${i+1===S.step?"on":""}">${i+1}</span>`).join("");
+ $("stepTitle").textContent=`Step ${S.step}: ${titles[S.step-1]}`;
+ $("graph").innerHTML=baseGraph(S.step);
+ let c="";
+ if(S.step===1)c=`<p>Start with the axes.</p><p><b>${S.fw==="bond"?"x-axis: Quantity of Bonds (Qb)<br>y-axis: Price of Bonds (Pb)":"x-axis: Quantity of Money (QM)<br>y-axis: Interest rate (r)"}</b></p>`;
+ if(S.step===2)c=`<p>${S.fw==="bond"?"Add Bond Demand (Bd) and Bond Supply (Bs).":"Add Money Demand (Md) and vertical Money Supply (Ms)."}</p>`;
+ if(S.step===3)c=`<p>Add the initial equilibrium and dashed guides.</p><p><b>${S.fw==="bond"?"E₀, P₀ and Q₀":"E₀, r₀ and QM₀"}</b></p>`;
+ if(S.step===4){let fs=S.fw==="bond"?bondFactors:keynesFactors;c=`<label>Factor</label><select id="factor"><option value="">Choose…</option>${Object.entries(fs).map(([k,v])=>`<option value="${k}" ${S.factor===k?"selected":""}>${v.n}</option>`).join("")}</select><label>Change</label><select id="dir"><option value="">Choose…</option><option value="up" ${S.dir==="up"?"selected":""}>Increase ↑</option><option value="down" ${S.dir==="down"?"selected":""}>Decrease ↓</option></select><p class="small">Choose both before moving to Step 5.</p>`}
+ if(S.step===5)c=`<p>Based on your selected factor, which way should the relevant curve shift?</p><div class="grid"><button id="left">LEFT ←</button><button id="right">RIGHT →</button>${S.fw==="bond"&&S.factor==="inflation"?'<button id="both">BOTH CURVES</button>':""}</div><div id="fb" class="feedback"></div>`;
+ if(S.step===6)c=`<p>Correct — now compare the original and shifted curve(s). The new curve is shown together with E₁.</p>`;
+ if(S.step===7)c=explain();
+ $("controls").innerHTML=c;
+ $("back").style.display=S.step===1?"none":"";
+ $("next").style.display=S.step===7?"none":"";
+ $("next").disabled=(S.step===4&&(!S.factor||!S.dir))||(S.step===5&&!S.checked);
+ if(S.step===4){$("factor").onchange=e=>{S.factor=e.target.value;S.checked=false;render()};$("dir").onchange=e=>{S.dir=e.target.value;S.checked=false;render()}}
+ if(S.step===5){["left","right","both"].forEach(id=>{let b=$(id);if(b)b.onclick=()=>check(id)})}
+}
+function check(ans){
+ let f=(S.fw==="bond"?bondFactors:keynesFactors)[S.factor],correct=f[S.dir],ok=(ans===correct);
+ $("fb").className="feedback "+(ok?"good":"bad");$("fb").textContent=ok?"✓ Correct! You can continue.":"✗ Try again. Think about how the factor affects demand or supply.";
+ S.checked=ok;$("next").disabled=!ok;
+}
+function explain(){
+ let f=(S.fw==="bond"?bondFactors:keynesFactors)[S.factor],up=S.dir==="up",name=f.n;
+ if(S.fw==="bond"){
+  if(S.factor==="inflation") return `<p><b>${name} ${up?"increases":"decreases"}.</b></p><p>Bond demand shifts ${up?"left":"right"} and bond supply shifts ${up?"right":"left"}. The bond price ${up?"falls":"rises"} and the interest rate ${up?"rises":"falls"}. The final change in Qb depends on the relative size of the two shifts.</p><p class="small">Bond price and interest rate are inversely related.</p>`;
+  let right=f[S.dir]==="right";return `<p><b>${name} ${up?"increases":"decreases"}.</b></p><p>Bond demand shifts <b>${right?"right":"left"}</b>. The equilibrium bond price ${right?"rises":"falls"} and quantity of bonds ${right?"rises":"falls"}. Therefore, the interest rate <b>${right?"falls":"rises"}</b>.</p><p class="small">Bond price and interest rate are inversely related.</p>`;
+ }
+ if(S.factor==="money"){return `<p><b>Money supply ${up?"increases":"decreases"}.</b></p><p>Ms shifts <b>${up?"right":"left"}</b>. Equilibrium quantity of money ${up?"rises":"falls"} and the interest rate <b>${up?"falls":"rises"}</b>.</p>`}
+ let right=f[S.dir]==="right";return `<p><b>${name} ${up?"increases":"decreases"}.</b></p><p>Money demand shifts <b>${right?"right":"left"}</b>. With money supply unchanged, the equilibrium interest rate <b>${right?"rises":"falls"}</b>.</p>`;
+}
+render();
+</script></body></html>
