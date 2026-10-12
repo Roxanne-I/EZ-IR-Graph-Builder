@@ -52,20 +52,35 @@ function baseGraph(level){
   if(S.fw==="bond") s+=`<line x1="125" y1="285" x2="440" y2="80" stroke="#278b68" stroke-width="4"/><text x="443" y="80" font-weight="800">Bs₀</text><line x1="125" y1="80" x2="440" y2="285" stroke="#65308f" stroke-width="4"/><text x="443" y="300" font-weight="800">Bd₀</text>`;
   else s+=`<line x1="300" y1="65" x2="300" y2="330" stroke="#278b68" stroke-width="4"/><text x="282" y="58" font-weight="800">Ms₀</text><line x1="125" y1="80" x2="440" y2="285" stroke="#65308f" stroke-width="4"/><text x="443" y="300" font-weight="800">Md₀</text>`;
  }
- if(level>=3){let x=S.fw==="bond"?282.5:300,y=S.fw==="bond"?182.5:193.8;s+=`<line x1="70" y1="${y}" x2="${x}" y2="${y}" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${x}" y2="330" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${x}" cy="${y}" r="6" fill="#3974ba"/><text x="${x+9}" y="${y-8}" font-weight="800">E₀</text><text x="38" y="${y+5}" font-weight="800">${S.fw==="bond"?"P₀":"r₀"}</text><text x="${x-13}" y="354" font-weight="800">${S.fw==="bond"?"Q₀":"QM₀"}</text>`}
+ if(level>=3){let x=S.fw==="bond"?282.5:300,y=S.fw==="bond"?182.5:(80+(440-300)*205/315);s+=`<line x1="70" y1="${y}" x2="${x}" y2="${y}" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${x}" y2="330" stroke="#3974ba" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${x}" cy="${y}" r="6" fill="#3974ba"/><text x="${x+9}" y="${y-8}" font-weight="800">E₀</text><text x="38" y="${y+5}" font-weight="800">${S.fw==="bond"?"P₀":"r₀"}</text><text x="${x-13}" y="354" font-weight="800">${S.fw==="bond"?"Q₀":"QM₀"}</text>`}
  if(level>=6) s+=shifted();
  return s
 }
+function newEquilibrium(x,y){
+ const price=S.fw==="bond"?"P₁":"r₁", quantity=S.fw==="bond"?"Q₁":"QM₁";
+ return `<line x1="70" y1="${y}" x2="${x}" y2="${y}" stroke="#c84c8b" stroke-dasharray="6 5" stroke-width="2"/><line x1="${x}" y1="${y}" x2="${x}" y2="330" stroke="#c84c8b" stroke-dasharray="6 5" stroke-width="2"/><circle cx="${x}" cy="${y}" r="6" fill="#c84c8b"/><text x="${x+9}" y="${y-9}" font-weight="800">E₁</text><text x="38" y="${y+5}" font-weight="800" fill="#c84c8b">${price}</text><text x="${x-13}" y="354" font-weight="800" fill="#c84c8b">${quantity}</text>`;
+}
 function shifted(){
- const f=(S.fw==="bond"?bondFactors:keynesFactors)[S.factor], d=S.dir, right=f[d]==="right", both=f[d]==="both";
+ const f=(S.fw==="bond"?bondFactors:keynesFactors)[S.factor],d=S.dir,right=f[d]==="right",both=f[d]==="both";
  if(S.fw==="bond"){
-   if(both){let up=d==="up";return `<line x1="${up?70:180}" y1="80" x2="${up?385:495}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${up?360:470}" y="300" font-weight="800">Bd₁</text><line x1="${up?180:70}" y1="285" x2="${up?495:385}" y2="80" stroke="#d68b2c" stroke-width="4"/><text x="${up?470:360}" y="78" font-weight="800">Bs₁</text>`}
-   let off=right?55:-55, x=282.5+off/2, y=182.5-off*205/630;
-   return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Bd₁</text><circle cx="${x}" cy="${y}" r="6" fill="#c84c8b"/><text x="${x+8}" y="${y-8}" font-weight="800">E₁</text>`;
- } else {
-   if(S.factor==="money"){let x=right?365:235,y=193.8+(right?42:-42);return `<line x1="${x}" y1="65" x2="${x}" y2="330" stroke="#d68b2c" stroke-width="4"/><text x="${x-18}" y="58" font-weight="800">Ms₁</text><circle cx="${x}" cy="${y}" r="6" fill="#c84c8b"/><text x="${x+8}" y="${y-8}" font-weight="800">E₁</text>`}
-   let off=right?55:-55, y=193.8-off*205/315;return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Md₁</text><circle cx="300" cy="${y}" r="6" fill="#c84c8b"/><text x="308" y="${y-8}" font-weight="800">E₁</text>`;
+  if(both){
+   const up=d==="up";
+   const demandOffset=up?-55:55, supplyOffset=up?55:-55;
+   const demand=`<line x1="${125+demandOffset}" y1="80" x2="${440+demandOffset}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+demandOffset}" y="300" font-weight="800">Bd₁</text>`;
+   const supply=`<line x1="${125+supplyOffset}" y1="285" x2="${440+supplyOffset}" y2="80" stroke="#d68b2c" stroke-width="4"/><text x="${443+supplyOffset}" y="78" font-weight="800">Bs₁</text>`;
+   const x=282.5+(demandOffset+supplyOffset)/2;
+   const y=182.5+(supplyOffset-demandOffset)*205/630;
+   return demand+supply+newEquilibrium(x,y);
+  }
+  const off=right?55:-55,x=282.5+off/2,y=182.5-off*205/630;
+  return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Bd₁</text>`+newEquilibrium(x,y);
  }
+ if(S.factor==="money"){
+  const x=right?365:235,y=80+(440-x)*205/315;
+  return `<line x1="${x}" y1="65" x2="${x}" y2="330" stroke="#d68b2c" stroke-width="4"/><text x="${x-18}" y="58" font-weight="800">Ms₁</text>`+newEquilibrium(x,y);
+ }
+ const off=right?55:-55,y=80+(440+off-300)*205/315;
+ return `<line x1="${125+off}" y1="80" x2="${440+off}" y2="285" stroke="#c84c8b" stroke-width="4"/><text x="${430+off}" y="300" font-weight="800">Md₁</text>`+newEquilibrium(300,y);
 }
 function render(){
  const titles=["Label the graph","Draw the initial curves","Mark the initial equilibrium","Identify the shifting factor","Choose the direction of shift","Draw the shifted curve","Explain the result"];
